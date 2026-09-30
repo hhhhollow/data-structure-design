@@ -1,0 +1,5 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     "/Users/liyumeng/Developer/data-structure/课程设计/课设习题2/main"
+relocations:     []
+...

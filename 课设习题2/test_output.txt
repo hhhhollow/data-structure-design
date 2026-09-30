@@ -1,0 +1,3 @@
+[Inserted Line A] This line is stored using LString block chain.
+Section 2: Stack and Queue represent LIFO and FIFO policies.
+Section 2: Block-chain string improves storage utilization.

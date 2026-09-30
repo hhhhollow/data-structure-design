@@ -1,0 +1,4 @@
+Section 1: Data structures provide structured data storage.
+Section 1: Linked list is a dynamic linear data structure.
+Section 2: Stack and Queue represent LIFO and FIFO policies.
+Section 2: Block-chain string improves storage utilization.
