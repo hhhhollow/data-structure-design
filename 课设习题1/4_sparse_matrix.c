@@ -109,6 +109,14 @@ void PrintMatrixView(const char *name, TSMat M) {
     printf("\n");
 }
 
+// 释放稀疏矩阵三元组表存储空间
+void DestroyTSMat(TSMat *M) {
+    if (!M || !*M) return;
+    if ((*M)->nzElem) free((*M)->nzElem);
+    free(*M);
+    *M = NULL;
+}
+
 int main(void) {
     printf("【题目4：三元组顺序表实现稀疏矩阵相加 C = A + B】\n\n");
 
@@ -143,6 +151,11 @@ int main(void) {
     printf("================ 结果矩阵 C = A + B ================\n");
     PrintTripleTable("矩阵 C", C);
     PrintMatrixView("矩阵 C", C);
+
+    // 释放动态分配的三元组顺序表
+    DestroyTSMat(&A);
+    DestroyTSMat(&B);
+    DestroyTSMat(&C);
 
     return 0;
 }

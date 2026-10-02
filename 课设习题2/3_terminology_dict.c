@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #define OK 1
 #define ERROR 0
@@ -270,7 +271,7 @@ int find(AVLTree T, const char *keyStr) {
     unsigned char targetKeys[KEY_NUM] = {0};
     int len = (int)strlen(keyStr);
     for (int i = 0; i < KEY_NUM; i++) {
-        targetKeys[i] = (i < len) ? (unsigned char)keyStr[i] : 0;
+        targetKeys[i] = (i < len) ? (unsigned char)tolower((unsigned char)keyStr[i]) : 0;
     }
 
     printf("--> 正在词典树中查找关键字: ");

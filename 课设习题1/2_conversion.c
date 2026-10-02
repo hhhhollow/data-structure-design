@@ -35,8 +35,9 @@ int StackEmpty(sqStack S) {
 Status Push(sqStack S, ElemType e) {
     if (!S) return ERROR;
     if (S->top - S->base >= S->size) { // 栈满扩容
-        S->base = (ElemType*)realloc(S->base, S->size * 2 * sizeof(ElemType));
-        if (!S->base) return ERROR;
+        ElemType *newBase = (ElemType*)realloc(S->base, S->size * 2 * sizeof(ElemType));
+        if (!newBase) return ERROR;
+        S->base = newBase;
         S->top = S->base + S->size;
         S->size *= 2;
     }

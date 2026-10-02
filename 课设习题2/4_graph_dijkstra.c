@@ -101,16 +101,6 @@ void ShortestPath_DIJ(MGraph G, int v0, DistInfo Dist[]) {
     }
 }
 
-// 递归打印从源点到目标结点的完整路径
-void PrintPathRecur(MGraph G, DistInfo Dist[], int v) {
-    if (v == -1) return;
-    PrintPathRecur(G, Dist, Dist[v].prev);
-    printf("%s", G.vexs[v].name);
-    if (Dist[v].prev != -1) {
-        // 当前节点不是递归链最顶端（输出在后面）
-    }
-}
-
 // 格式化输出最短路径
 void PrintShortestPath(MGraph G, DistInfo Dist[], int dest) {
     if (Dist[dest].lowcost == INFINITY) {

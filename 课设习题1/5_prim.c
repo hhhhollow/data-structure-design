@@ -142,6 +142,7 @@ void MiniSpanTree_P(MGraph G, VertexType u) {
             closedge[j].lowcost = G.arcs[k][j];
         }
     }
+    closedge[k].adjvex = u;
     closedge[k].lowcost = 0; // 起始顶点u并入U集合
 
     printf("--- 普利姆算法求解最小生成树（从顶点 %d 出发）---\n", u);
@@ -180,18 +181,54 @@ void MiniSpanTree_P(MGraph G, VertexType u) {
     printf("最小生成树的总权值为: %d\n\n", totalWeight);
 }
 
+// 将邻接表转换为邻接矩阵（实现题设“存入邻接表”与“MiniSpanTree_P(MGraph G, VertexType u)”的衔接）
+void ALGraphToMGraph(const ALGraph *alg, MGraph *mg) {
+    mg->vexnum = alg->vexnum;
+    mg->arcnum = alg->arcnum;
+    for (int i = 0; i < mg->vexnum; i++) {
+        mg->vexs[i] = alg->vertices[i].data;
+        for (int j = 0; j < mg->vexnum; j++) {
+            mg->arcs[i][j] = (i == j) ? 0 : INFINITY;
+        }
+    }
+    for (int i = 0; i < alg->vexnum; i++) {
+        ArcNode *p = alg->vertices[i].firstarc;
+        while (p) {
+            mg->arcs[i][p->adjvex] = p->weight;
+            p = p->nextarc;
+        }
+    }
+}
+
+// 释放邻接表内存空间
+void DestroyALGraph(ALGraph *G) {
+    for (int i = 0; i < G->vexnum; i++) {
+        ArcNode *p = G->vertices[i].firstarc;
+        while (p) {
+            ArcNode *q = p->nextarc;
+            free(p);
+            p = q;
+        }
+        G->vertices[i].firstarc = NULL;
+    }
+    G->vexnum = G->arcnum = 0;
+}
+
 int main(void) {
     printf("【题目5：图的邻接表存储与普利姆算法求解最小生成树】\n\n");
 
-    // 1. 将题目图存入邻接表并打印验证
+    // 1. 将题目图存入邻接表并打印验证（满足题设“将右图存入邻接表”）
     ALGraph alg;
     CreateALGraph(&alg);
     PrintALGraph(alg);
 
-    // 2. 构造邻接矩阵并执行题目要求的操作 MiniSpanTree_P(MGraph G, VertexType u)
+    // 2. 将邻接表转换为邻接矩阵，并执行题目要求的操作 MiniSpanTree_P(MGraph G, VertexType u)
     MGraph mg;
-    CreateMGraph(&mg);
+    ALGraphToMGraph(&alg, &mg);
     MiniSpanTree_P(mg, 1);
+
+    // 3. 释放邻接表动态分配的内存
+    DestroyALGraph(&alg);
 
     return 0;
 }

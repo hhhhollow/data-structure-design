@@ -63,7 +63,10 @@ Status CreateSet(LinkList *T, const char *Str) {
 
         char *endptr;
         long val = strtol(p, &endptr, 10);
-        if (p == endptr) break;
+        if (p == endptr) {
+            p++;
+            continue;
+        }
 
         // 集合元素互异性：若集合中不存在该元素，则插入表尾
         if (!LocateElem(*T, (ElemType)val)) {

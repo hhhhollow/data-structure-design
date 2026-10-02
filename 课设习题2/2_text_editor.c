@@ -261,6 +261,13 @@ void CloseEditor(Editor *ed) {
             fprintf(ed->outFp, "%s\n", buf);
             curr = curr->next;
         }
+        // 若输入文件中仍有未读完的后续内容，全部顺次拷贝至输出文件（防止数据丢失）
+        if (ed->inFp && !feof(ed->inFp)) {
+            char lineBuf[MAX_LINE_LEN + 1];
+            while (fgets(lineBuf, sizeof(lineBuf), ed->inFp)) {
+                fputs(lineBuf, ed->outFp);
+            }
+        }
         fclose(ed->outFp);
         ed->outFp = NULL;
     }
@@ -281,7 +288,76 @@ void CloseEditor(Editor *ed) {
     ed->lineCount = 0;
 }
 
-int main(void) {
+// 交互式命令解析执行循环（支持题目规定的 i, d, n, p 及退出保存命令 q）
+void InteractiveEditor(Editor *ed) {
+    printf("\n=== 进入简易文本编辑器交互模式 ===\n");
+    printf("支持命令说明（格式严格符合题设）：\n");
+    printf("  i<行号>           : 在指定行后插入文本，随后逐行输入内容，单起一行输入 \".\" 结束输入\n");
+    printf("  d<行1> [<行2>]   : 删除指定行（或行区间，例如 d 2 或 d 2 4）\n");
+    printf("  n                 : 活区切换（写出当前活区并读入下一段）\n");
+    printf("  p                 : 活区显示（打印当前活区所有行文本）\n");
+    printf("  q                 : 保存并退出编辑器\n");
+    printf("==================================\n");
+
+    char cmdLine[MAX_LINE_LEN + 1];
+    while (1) {
+        printf("Editor> ");
+        if (!fgets(cmdLine, sizeof(cmdLine), stdin)) break;
+
+        char *cmd = cmdLine;
+        while (*cmd == ' ' || *cmd == '\t') cmd++;
+        size_t len = strlen(cmd);
+        while (len > 0 && (cmd[len - 1] == '\r' || cmd[len - 1] == '\n')) cmd[--len] = '\0';
+        if (len == 0) continue;
+
+        char op = cmd[0];
+        if (op == 'p' || op == 'P') {
+            Command_p(ed);
+        } else if (op == 'n' || op == 'N') {
+            Command_n(ed);
+        } else if (op == 'd' || op == 'D') {
+            int line1 = 0, line2 = 0;
+            int matched = sscanf(cmd + 1, "%d %d", &line1, &line2);
+            if (matched == 1) {
+                Command_d(ed, line1, line1);
+            } else if (matched == 2) {
+                Command_d(ed, line1, line2);
+            } else {
+                printf("命令格式错误！示例: d 2 或 d 2 4\n");
+            }
+        } else if (op == 'i' || op == 'I') {
+            int lineNo = 0;
+            if (sscanf(cmd + 1, "%d", &lineNo) != 1) {
+                printf("命令格式错误！示例: i 2\n");
+                continue;
+            }
+            printf("请输入待插入文本（每行一条，单起一行输入 \".\" 结束输入）：\n");
+            char textBuf[50][MAX_LINE_LEN + 1];
+            const char *linesPtr[50];
+            int inputCount = 0;
+            char inLine[MAX_LINE_LEN + 1];
+            while (inputCount < 50 && fgets(inLine, sizeof(inLine), stdin)) {
+                size_t l = strlen(inLine);
+                while (l > 0 && (inLine[l - 1] == '\r' || inLine[l - 1] == '\n')) inLine[--l] = '\0';
+                if (strcmp(inLine, ".") == 0) break;
+                strncpy(textBuf[inputCount], inLine, MAX_LINE_LEN);
+                textBuf[inputCount][MAX_LINE_LEN] = '\0';
+                linesPtr[inputCount] = textBuf[inputCount];
+                inputCount++;
+            }
+            if (inputCount > 0) {
+                Command_i(ed, lineNo, linesPtr, inputCount);
+            }
+        } else if (op == 'q' || op == 'Q' || op == 'e' || op == 'E') {
+            printf("保存活区并退出编辑器...\n");
+            break;
+        } else {
+            printf("未知命令: '%c'，请输入 i, d, n, p 或 q\n", op);
+        }
+    }
+}
+
+int main(int argc, char *argv[]) {
     printf("====================================================\n");
     printf("   题目二：简易文本编辑器（基于LString块链存储）\n");
     printf("====================================================\n\n");
@@ -302,53 +378,62 @@ int main(void) {
     Editor ed;
     InitEditor(&ed, inFile, outFile);
 
-    // 1. 演示活区切换 n（从输入文件加载第 1 段内容）
-    printf("1. 执行活区切换命令: n (从输入文件读入初始文本段)\n");
-    Command_n(&ed);
-    printf("\n");
+    if (argc > 1 && (strcmp(argv[1], "-i") == 0 || strcmp(argv[1], "--interactive") == 0)) {
+        // 键盘实时交互编辑模式
+        Command_n(&ed);
+        InteractiveEditor(&ed);
+        CloseEditor(&ed);
+    } else {
+        // 默认自动化脚本演示模式（生成符合报告规范的标准输出）
+        // 1. 演示活区切换 n（从输入文件加载第 1 段内容）
+        printf("1. 执行活区切换命令: n (从输入文件读入初始文本段)\n");
+        Command_n(&ed);
+        printf("\n");
 
-    // 2. 演示活区显示命令: p
-    printf("2. 执行活区显示命令: p\n");
-    Command_p(&ed);
-    printf("\n");
+        // 2. 演示活区显示命令: p
+        printf("2. 执行活区显示命令: p\n");
+        Command_p(&ed);
+        printf("\n");
 
-    // 3. 演示行插入命令: i<行号> (在第 2 行后插入新文本)
-    printf("3. 执行行插入命令: i 2 (在第 2 行之后插入 2 行新内容)\n");
-    const char *insertText[] = {
-        "[Inserted Line A] This line is stored using LString block chain.",
-        "[Inserted Line B] Chunk size is 80 characters."
-    };
-    Command_i(&ed, 2, insertText, 2);
-    printf("插入后查看活区内容:\n");
-    Command_p(&ed);
-    printf("\n");
+        // 3. 演示行插入命令: i<行号> (在第 2 行后插入新文本)
+        printf("3. 执行行插入命令: i 2 (在第 2 行之后插入 2 行新内容)\n");
+        const char *insertText[] = {
+            "[Inserted Line A] This line is stored using LString block chain.",
+            "[Inserted Line B] Chunk size is 80 characters."
+        };
+        Command_i(&ed, 2, insertText, 2);
+        printf("插入后查看活区内容:\n");
+        Command_p(&ed);
+        printf("\n");
 
-    // 4. 演示行删除命令: d<行号1> <行号2>
-    printf("4. 执行行删除命令: d 1 2 (删除第 1 行到第 2 行)\n");
-    Command_d(&ed, 1, 2);
-    printf("删除后查看活区内容:\n");
-    Command_p(&ed);
-    printf("\n");
+        // 4. 演示行删除命令: d<行号1> <行号2>
+        printf("4. 执行行删除命令: d 1 2 (删除第 1 行到第 2 行)\n");
+        Command_d(&ed, 1, 2);
+        printf("删除后查看活区内容:\n");
+        Command_p(&ed);
+        printf("\n");
 
-    // 5. 再次演示行删除单行: d 2
-    printf("5. 执行单行删除命令: d 2 (删除第 2 行)\n");
-    Command_d(&ed, 2, 2);
-    printf("删除后查看活区内容:\n");
-    Command_p(&ed);
-    printf("\n");
+        // 5. 再次演示行删除单行: d 2
+        printf("5. 执行单行删除命令: d 2 (删除第 2 行)\n");
+        Command_d(&ed, 2, 2);
+        printf("删除后查看活区内容:\n");
+        Command_p(&ed);
+        printf("\n");
 
-    // 6. 最终文本保存至文件
-    printf("6. 结束编辑并保存最终文本到输出文件 \"%s\"...\n", outFile);
-    CloseEditor(&ed);
-    printf("文件保存完成。输出文件内容如下：\n");
+        // 6. 最终文本保存至文件
+        printf("6. 结束编辑并保存最终文本到输出文件 \"%s\"...\n", outFile);
+        CloseEditor(&ed);
+        printf("文件保存完成。输出文件内容如下：\n");
 
-    FILE *outCheck = fopen(outFile, "r");
-    if (outCheck) {
-        char ch;
-        while ((ch = fgetc(outCheck)) != EOF) {
-            putchar(ch);
+        FILE *outCheck = fopen(outFile, "r");
+        if (outCheck) {
+            char ch;
+            while ((ch = fgetc(outCheck)) != EOF) {
+                putchar(ch);
+            }
+            fclose(outCheck);
         }
-        fclose(outCheck);
+        printf("\n提示：运行程序添加参数 -i (如: ./2_text_editor -i) 可启动键盘实时交互编辑模式。\n");
     }
 
     printf("\n====================================================\n");

@@ -183,6 +183,16 @@ void PrintTreeIndented(BSTree T, int space) {
     PrintTreeIndented(T->lchild, space);
 }
 
+// 递归后序释放二叉平衡树存储空间
+void DestroyAVLTree(BSTree *T) {
+    if (*T) {
+        DestroyAVLTree(&((*T)->lchild));
+        DestroyAVLTree(&((*T)->rchild));
+        free(*T);
+        *T = NULL;
+    }
+}
+
 int main(void) {
     printf("【题目6：二叉平衡树的构造、LeftBalance旋转与InsertAVL插入】\n\n");
 
@@ -222,6 +232,9 @@ int main(void) {
     printf("中序遍历序列: ");
     InOrderTraverse(T);
     printf("\n\n");
+
+    // 释放二叉平衡树内存
+    DestroyAVLTree(&T);
 
     return 0;
 }

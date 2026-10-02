@@ -98,10 +98,10 @@ int StrCompare(LString S, LString T) {
     int is = 0, it = 0;
 
     for (int k = 0; k < minLen; k++) {
-        char cs = ps->ch[is];
-        char ct = pt->ch[it];
+        unsigned char cs = (unsigned char)ps->ch[is];
+        unsigned char ct = (unsigned char)pt->ch[it];
         if (cs != ct) {
-            return cs - ct;
+            return (int)cs - (int)ct;
         }
         is++;
         if (is == CHUNKSIZE) {
@@ -197,6 +197,12 @@ int main(void) {
     char finalChars[100];
     ToCString(S, finalChars);
     printf("   展开字符值: \"%s\"\n", finalChars);
+
+    // 释放所有块链串内存
+    ClearString(&S);
+    ClearString(&T1);
+    ClearString(&T2);
+    ClearString(&insertStr);
 
     return 0;
 }

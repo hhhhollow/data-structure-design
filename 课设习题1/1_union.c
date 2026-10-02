@@ -75,6 +75,18 @@ void PrintList(const char *name, LinkList L) {
     printf(" }\n");
 }
 
+// 释放单链表存储空间
+void DestroyList(LinkList *L) {
+    if (!L || !*L) return;
+    LinkList p = *L;
+    while (p) {
+        LinkList q = p->next;
+        free(p);
+        p = q;
+    }
+    *L = NULL;
+}
+
 int main(void) {
     // 集合 A = {1, 3, 5}，集合 B = {1, 4, 6, 2}
     ElemType a[] = {1, 3, 5};
@@ -93,6 +105,10 @@ int main(void) {
 
     printf("\n执行并集操作后：\n");
     PrintList("LA (A = A U B)", LA);
+
+    // 释放动态分配的单链表空间
+    DestroyList(&LA);
+    DestroyList(&LB);
 
     return 0;
 }

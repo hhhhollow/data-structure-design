@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #define OK 1
 #define ERROR 0
@@ -55,7 +56,10 @@ static Status CreateSet(LinkList *T, const char *Str) {
         if (!*p) break;
         char *endptr;
         long val = strtol(p, &endptr, 10);
-        if (p == endptr) break;
+        if (p == endptr) {
+            p++;
+            continue;
+        }
         if (!LocateElem(*T, (ElemType)val)) {
             ListInsert_Back(*T, (ElemType)val);
         }
@@ -405,6 +409,126 @@ static void RunModule2(void) {
     remove(outFile);
 }
 
+static void RunModule2Interactive(void) {
+    printf("\n======================================================================\n");
+    printf("   【模块二：简易文本编辑器（键盘交互编辑模式）】\n");
+    printf("======================================================================\n");
+    const char *inFile = "temp_interactive_in.txt";
+    const char *outFile = "temp_interactive_out.txt";
+
+    FILE *fp = fopen(inFile, "w");
+    if (fp) {
+        fprintf(fp, "Section 1: Data structures provide structured data storage.\n");
+        fprintf(fp, "Section 1: Linked list is a dynamic linear data structure.\n");
+        fprintf(fp, "Section 2: Stack and Queue represent LIFO and FIFO policies.\n");
+        fprintf(fp, "Section 2: Block-chain string improves storage utilization.\n");
+        fclose(fp);
+    }
+
+    FILE *inFp = fopen(inFile, "r");
+    FILE *outFp = fopen(outFile, "w");
+    EditorArea ed;
+    InitEditorArea(&ed);
+
+    // 首先读入首段
+    CommandN(&ed, inFp, outFp);
+
+    printf("\n=== 键盘交互命令说明（严格符合题设）===\n");
+    printf("  i<行号>           : 在指定行后插入文本，随后逐行输入内容，单起一行输入 \".\" 结束输入\n");
+    printf("  d<行1> [<行2>]   : 删除指定行（或行区间，例如 d 2 或 d 2 4）\n");
+    printf("  n                 : 活区切换（写出当前活区并读入下一段）\n");
+    printf("  p                 : 活区显示（打印当前活区所有行文本）\n");
+    printf("  q                 : 保存并退出编辑器\n");
+    printf("=========================================\n");
+
+    char cmdLine[MAX_LINE_LEN + 1];
+    while (1) {
+        printf("Editor> ");
+        if (!fgets(cmdLine, sizeof(cmdLine), stdin)) break;
+
+        char *cmd = cmdLine;
+        while (*cmd == ' ' || *cmd == '\t') cmd++;
+        size_t len = strlen(cmd);
+        while (len > 0 && (cmd[len - 1] == '\r' || cmd[len - 1] == '\n')) cmd[--len] = '\0';
+        if (len == 0) continue;
+
+        char op = cmd[0];
+        if (op == 'p' || op == 'P') {
+            CommandP(&ed);
+        } else if (op == 'n' || op == 'N') {
+            CommandN(&ed, inFp, outFp);
+        } else if (op == 'd' || op == 'D') {
+            int line1 = 0, line2 = 0;
+            int matched = sscanf(cmd + 1, "%d %d", &line1, &line2);
+            if (matched == 1) {
+                CommandD(&ed, line1, line1);
+            } else if (matched == 2) {
+                CommandD(&ed, line1, line2);
+            } else {
+                printf("命令格式错误！示例: d 2 或 d 2 4\n");
+            }
+        } else if (op == 'i' || op == 'I') {
+            int lineNo = 0;
+            if (sscanf(cmd + 1, "%d", &lineNo) != 1) {
+                printf("命令格式错误！示例: i 2\n");
+                continue;
+            }
+            printf("请输入待插入文本（每行一条，单起一行输入 \".\" 结束输入）：\n");
+            char textBuf[50][MAX_LINE_LEN + 1];
+            const char *linesPtr[50];
+            int inputCount = 0;
+            char inLine[MAX_LINE_LEN + 1];
+            while (inputCount < 50 && fgets(inLine, sizeof(inLine), stdin)) {
+                size_t l = strlen(inLine);
+                while (l > 0 && (inLine[l - 1] == '\r' || inLine[l - 1] == '\n')) inLine[--l] = '\0';
+                if (strcmp(inLine, ".") == 0) break;
+                strncpy(textBuf[inputCount], inLine, MAX_LINE_LEN);
+                textBuf[inputCount][MAX_LINE_LEN] = '\0';
+                linesPtr[inputCount] = textBuf[inputCount];
+                inputCount++;
+            }
+            if (inputCount > 0) {
+                CommandI(&ed, lineNo, linesPtr, inputCount);
+            }
+        } else if (op == 'q' || op == 'Q' || op == 'e' || op == 'E') {
+            printf("保存活区并退出编辑器...\n");
+            break;
+        } else {
+            printf("未知命令: '%c'，请输入 i, d, n, p 或 q\n", op);
+        }
+    }
+
+    // 退出前将活区内容写出
+    if (outFp) {
+        LineNode *curr = ed.head->next;
+        char buf[MAX_LINE_LEN + 1];
+        while (curr) {
+            LStringToCString(curr->text, buf);
+            fprintf(outFp, "%s\n", buf);
+            curr = curr->next;
+        }
+        if (inFp && !feof(inFp)) {
+            char lineBuf[MAX_LINE_LEN + 1];
+            while (fgets(lineBuf, sizeof(lineBuf), inFp)) {
+                fputs(lineBuf, outFp);
+            }
+        }
+    }
+    if (inFp) fclose(inFp);
+    if (outFp) fclose(outFp);
+    DestroyEditorArea(&ed);
+
+    printf("最终保存文件内容如下：\n");
+    FILE *savedChk = fopen(outFile, "r");
+    if (savedChk) {
+        char ch;
+        while ((ch = fgetc(savedChk)) != EOF) putchar(ch);
+        fclose(savedChk);
+    }
+    remove(inFile);
+    remove(outFile);
+}
+
 // ============================================================================
 //                   模块三：术语词典（LSD链式基数排序 + AVL树查找）
 // ============================================================================
@@ -616,7 +740,9 @@ static int InsertAVL(AVLTree *T, TermNode node, int *taller) {
 static int find(AVLTree T, const char *keyStr) {
     unsigned char targetKeys[KEY_NUM] = {0};
     int len = (int)strlen(keyStr);
-    for (int i = 0; i < KEY_NUM; i++) targetKeys[i] = (i < len) ? (unsigned char)keyStr[i] : 0;
+    for (int i = 0; i < KEY_NUM; i++) {
+        targetKeys[i] = (i < len) ? (unsigned char)tolower((unsigned char)keyStr[i]) : 0;
+    }
     printf("--> 查找关键字: ");
     PrintKeys(targetKeys);
     printf(" (拼音: \"%s\")\n", keyStr);
@@ -631,6 +757,16 @@ static int find(AVLTree T, const char *keyStr) {
     }
     printf("    【查找失败】未找到关键字为 \"%s\" 的术语。\n", keyStr);
     return FALSE;
+}
+
+static void InOrderTraverse(AVLTree T) {
+    if (T) {
+        InOrderTraverse(T->lchild);
+        printf("    %-10s 关键字: ", T->term);
+        PrintKeys(T->keys);
+        printf("  [bf=%2d]\n", T->bf);
+        InOrderTraverse(T->rchild);
+    }
 }
 
 static void DestroyTermList(TermList *head) {
@@ -664,6 +800,7 @@ static void RunModule3(void) {
     AppendTerm(&dictList, "线性表",   "xxb",   "由相同特性的数据元素构成的有限序列");
     AppendTerm(&dictList, "栈",       "z",     "限定仅在表尾进行插入和删除操作的线性表(LIFO)");
     AppendTerm(&dictList, "队列",     "dl",    "只允许在一端插入另一端删除的线性表(FIFO)");
+    AppendTerm(&dictList, "平衡树",   "phs",   "任意结点的左右两棵子树高度差绝对值不超过1的树");
 
     printf("1. 初始未排序的术语词典链表：\n");
     PrintTermList(dictList);
@@ -681,12 +818,14 @@ static void RunModule3(void) {
         InsertAVL(&dictTree, *p, &taller);
         p = p->next;
     }
-    printf("   平衡二叉树建立完成。\n");
+    printf("   平衡二叉树建立完成。中序遍历验证有序性与平衡因子：\n");
+    InOrderTraverse(dictTree);
 
     printf("\n4. 执行 find(key) 查找功能测试：\n");
     find(dictTree, "ts");
     find(dictTree, "sjjg");
-    find(dictTree, "notexist");
+    find(dictTree, "ecs");
+    find(dictTree, "xyz");
 
     DestroyTermList(&dictList);
     DestroyAVLTree(&dictTree);
@@ -821,16 +960,20 @@ int main(void) {
         printf("              数据结构课程设计（二）综合运行系统                      \n");
         printf("======================================================================\n");
         printf("   [1] 模块一：批量增删功能演示（单链表集合运算）\n");
-        printf("   [2] 模块二：简易文本编辑器演示（LString块链存储）\n");
+        printf("   [2] 模块二：简易文本编辑器演示（LString块链存储 - 自动演示）\n");
         printf("   [3] 模块三：术语词典系统（LSD链式基数排序 + AVL树检索）\n");
         printf("   [4] 模块四：图的使用（迪杰斯特拉单源最短路径规划）\n");
         printf("   [5] 一键连续演示全部模块（生成完整课设运行输出）\n");
+        printf("   [6] 模块二：简易文本编辑器（键盘交互编辑模式：i/d/n/p/q）\n");
         printf("   [0] 退出系统\n");
         printf("======================================================================\n");
-        printf("请输入功能选项 [0-5]: ");
+        printf("请输入功能选项 [0-6]: ");
 
         if (scanf("%d", &choice) != 1) {
-            break;
+            int ch;
+            while ((ch = getchar()) != '\n' && ch != EOF);
+            printf("输入非法，请输入数字选项 [0-6]！\n");
+            continue;
         }
 
         switch (choice) {
@@ -844,6 +987,7 @@ int main(void) {
                 RunModule3();
                 RunModule4();
                 break;
+            case 6: RunModule2Interactive(); break;
             case 0:
                 printf("\n退出数据结构课程设计系统。再见！\n");
                 break;
