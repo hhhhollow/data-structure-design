@@ -1,0 +1,13 @@
+p
+i2
+Inserted A: Line after Line 2
+Inserted B: Second inserted line
+.
+p
+d5
+p
+d3 4
+p
+n
+p
+n
